@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Acheulean Lab ASCII</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital@0;1&display=swap" rel="stylesheet">
+  <style>
+    #asciiArt {
+      font-family: "Space Mono", monospace;
+      font-size: 8px;
+      letter-spacing: 2px;
+      line-height: .91; 
+      white-space: pre-wrap; 
+    }
+
+    .lab-text {
+      background-color: #0000ff;
+      color: white; 
+      font-weight: bold;
+    }
+
+    #asciiArt span {
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <input type="file" id="imageInput">
+  <pre id="asciiArt"></pre>
+
+  <script>
+    const normalCharacters = ['A', 'c', 'h', 'e', 'u', 'l', 'a', 'n', '.']; // Normal order
+    const invertedCharacters = [ '.', 'n', 'a', 'l', 'u', 'e', 'h', 'c', 'A']; // Inverted order for black/white
+    const labText = 'Acheulean_Lab:'; 
+
+    const colorMap = {
+      black: { r: 0, g: 0, b: 0 },
+      white: { r: 255, g: 255, b: 255 },
+      blue: { r: 25, g: 20, b: 255 }, 
+      orange: { r: 255, g: 46, b: 26 }, 
+      green: { r: 0, g: 239, b: 81 } 
+    };
+
+    function colorDistance(r1, g1, b1, r2, g2, b2) {
+      return Math.sqrt((r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2);
+    }
+
+    function closestColor(r, g, b) {
+      let closest = 'black';
+      let minDistance = Infinity;
+
+      for (let color in colorMap) {
+        const { r: r2, g: g2, b: b2 } = colorMap[color];
+        const distance = colorDistance(r, g, b, r2, g2, b2);
+        if (distance < minDistance) {
+          minDistance = distance;
+          closest = color;
+        }
+      }
+
+      return closest;
+    }
+
+    function pixelToChar(brightness, characterSet) {
+      const range = 255 / (characterSet.length - 1);
+      const index = Math.floor(brightness / range);
+      return characterSet[index];
+    }
+
+    function isItalic() {
+      return Math.random() < 0.2; // 20% chance to be italic
+    }
+
+    function imageToAscii(file) {
+      const reader = new FileReader();
+
+      reader.onload = function(e) {
+        const image = new Image();
+        image.onload = function() {
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+
+          const aspectRatio = image.width / image.height;
+          const newHeight = 80;
+          const newWidth = Math.floor(newHeight * aspectRatio);
+
+          canvas.width = newWidth;
+          canvas.height = newHeight;
+
+          context.drawImage(image, 0, 0, newWidth, newHeight);
+
+          const imageData = context.getImageData(0, 0, newWidth, newHeight);
+          const data = imageData.data;
+
+          let asciiArt = '';
+          const firstRow = [];
+          const labTextLength = labText.length;
+
+          // Step 1: Generate ASCII art with color mapping
+          for (let y = 0; y < newHeight; y++) {
+            let line = '';
+            for (let x = 0; x < newWidth; x++) {
+              const index = (y * newWidth + x) * 4;
+              const red = data[index];
+              const green = data[index + 1];
+              const blue = data[index + 2];
+              const alpha = data[index + 3]; 
+
+              let brightness = (red + green + blue) / 3;
+              let closest;
+              let backgroundColor;
+              let textColor;
+              let characterSet;
+
+              if (alpha === 0) {
+                backgroundColor = '#ffffff'; // Transparent areas(png) set to white
+                textColor = 'black';
+                characterSet = invertedCharacters;
+                brightness = 255; 
+              } else {
+                closest = closestColor(red, green, blue);
+                if (closest === 'white') {
+                  backgroundColor = '#ffffff';
+                  textColor = 'black';
+                  characterSet = invertedCharacters;
+                } else if (closest === 'black') {
+                  backgroundColor = '#000000';
+                  textColor = 'white';
+                  characterSet = invertedCharacters;
+                } else {
+                  backgroundColor = `rgb(${colorMap[closest].r}, ${colorMap[closest].g}, ${colorMap[closest].b})`;
+                  textColor = 'white';
+                  characterSet = normalCharacters;
+                }
+              }
+
+              const character = pixelToChar(brightness, characterSet);
+              const italicStyle = isItalic() ? 'font-style:italic;' : '';
+
+              const asciiChar = `<span style="background-color:${backgroundColor}; color:${textColor}; ${italicStyle}">${character}</span>`;
+              if (y === 0) firstRow.push(asciiChar); // Keep track of first row separately
+              line += asciiChar;
+            }
+            asciiArt += line + '\n';
+          }
+
+          // Step 2: Inject Title
+          const labTextSpans = labText
+            .split('')
+            .map(
+              (char) => `<span class="lab-text">${char}</span>` 
+            )
+            .join('');
+
+          const firstRowTextStart = newWidth - labTextLength;
+          firstRow.splice(firstRowTextStart, labTextLength, labTextSpans); 
+          asciiArt = firstRow.join('') + '\n' + asciiArt.split('\n').slice(1).join('\n');
+
+          // Step 3: Inject the HTML content into the ASCII art container
+          const asciiArtElement = document.getElementById('asciiArt');
+          asciiArtElement.innerHTML = asciiArt; // Use innerHTML to apply color styles
+        };
+
+        image.src = e.target.result;
+      };
+
+      reader.readAsDataURL(file);
+    }
+
+    document.getElementById('imageInput').addEventListener('change', function(event) {
+      const file = event.target.files[0];
+      imageToAscii(file);
+    });
+  </script>
+</body>
+</html>

@@ -2,9 +2,10 @@
 Custom ASCII standards
 
 This is a simple web-based ASCII art generator that converts images to ASCII artwork with "Acheulean.Lab" characters and colors. 
-
+## Demo
+A modified version is live at: https://acheuleanlab.com/ascii_zone/grid.html
 ## How to Use
-
+ 
 1. Clone or download the repository.
 2. Open the `achlab_ascii.html` file in a web browser.
 3. Upload an image, and it will generate the ASCII art output.
